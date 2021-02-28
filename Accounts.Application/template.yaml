@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An AWS Serverless Application.
+Parameters:
+  SecurityGroupId:
+    Type: 'AWS::EC2::SecurityGroup::Id'
+  SubNetId1:
+    Type: 'AWS::EC2::Subnet::Id'
+  SubNetId2:
+    Type: 'AWS::EC2::Subnet::Id'
+  EnvironmentType:
+    Description: The environment type
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - uat
+      - prod
+    ConstraintDescription: 'Must be dev, uat or prod'
+Mappings:
+  EnvironmentVariablesMap:
+    Function.Properties.CodeUri.Bucket:
+      dev: vanlune-bin-dev
+      uat: vanlune-bin-uat
+      prod: vanlune-bin-prod
+    Function.Properties.Accounts.Bucket:
+      dev: vanlune-database
+      uat: vanlune-database
+      prod: vanlune-database
+    Stage.ApiGateway:
+      dev: Dev
+      uat: Uat
+      prod: Prod
+Resources:
+ # API Functinos
+  ApiGatewayApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !FindInMap 
+          - EnvironmentVariablesMap
+          - Stage.ApiGateway
+          - !Ref EnvironmentType
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+  CreateOrUpdatProduct:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: vanlune-product-create
+      Handler: >-
+        Accounts.Application::Accounts.Application.Function::CreateOrUpdateProducts
+      Runtime: dotnetcore3.1
+      CodeUri:
+        Bucket: !FindInMap 
+          - EnvironmentVariablesMap
+          - Function.Properties.CodeUri.Bucket
+          - !Ref EnvironmentType
+        Key: Accounts.zip
+      MemorySize: 256
+      Timeout: 900
+      Role: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/role-lambda-vanlune']]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Tracing: Active
+      Events:
+        HttpPost: 
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGatewayApi
+            Path: '/products'
+            Method: post        
+      Environment:
+        Variables:
+          AWS_S3_Bucket: !FindInMap 
+            - EnvironmentVariablesMap
+            - Function.Properties.Accounts.Bucket
+            - !Ref EnvironmentType
+  DeleteProduct:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: vanlune-product-delete-all
+      Handler: >-
+        Accounts.Application::Accounts.Application.Function::DeleteProducts
+      Runtime: dotnetcore3.1
+      CodeUri:
+        Bucket: !FindInMap 
+          - EnvironmentVariablesMap
+          - Function.Properties.CodeUri.Bucket
+          - !Ref EnvironmentType
+        Key: Accounts.zip
+      MemorySize: 256
+      Timeout: 900
+      Role: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/role-lambda-vanlune']]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Tracing: Active
+      Events:
+        HttpPost: 
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGatewayApi
+            Path: '/products'
+            Method: delete
+      Environment:
+        Variables:
+          AWS_S3_Bucket: !FindInMap 
+            - EnvironmentVariablesMap
+            - Function.Properties.Accounts.Bucket
+            - !Ref EnvironmentType
+  GetAllProductsByCategory:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: vanlune-product-get-all-by-category
+      Handler: >-
+        Accounts.Application::Accounts.Application.Function::GetAllProductsByCategory
+      Runtime: dotnetcore3.1
+      CodeUri:
+        Bucket: !FindInMap 
+          - EnvironmentVariablesMap
+          - Function.Properties.CodeUri.Bucket
+          - !Ref EnvironmentType
+        Key: Accounts.zip
+      MemorySize: 256
+      Timeout: 900
+      Role: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/lambda_frontend']]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Tracing: Active
+      Events:
+        HttpPost: 
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGatewayApi
+            Path: '/products'
+            Method: get
+      Environment:
+        Variables:
+          AWS_S3_Bucket: !FindInMap 
+            - EnvironmentVariablesMap
+            - Function.Properties.Accounts.Bucket
+            - !Ref EnvironmentType
+  
