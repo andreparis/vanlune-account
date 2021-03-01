@@ -1,5 +1,6 @@
 ﻿using Accounts.Application.MediatR.Base;
 using Accounts.Domain.DataAccess.Repositories;
+using Accounts.Domain.Messaging;
 using Accounts.Domain.Security;
 using Accounts.Infraestructure.Logging;
 using Accounts.Infraestructure.Security;
@@ -85,6 +86,12 @@ namespace Accounts.Application.Application.MediatR.Commands.User.AuthenticateUse
             var securityKey = _awsSecretManagerService.GetSecret(_configuration["SecurityToken:SecretName"]);
 
             var serializedToken = _securityTokenHandler.WriteToken(request.Email, claims, issuer, securityKey, expires);
+
+            //_authRedis.AddAuth(serializedToken, 
+            //    new Domain.Entities.Credentials() 
+            //    {
+            //        Roles = user.Roles.Select(x => x.Role)
+            //    });
 
             return new HandleResponse()
             {

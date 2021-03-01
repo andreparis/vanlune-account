@@ -8,6 +8,14 @@ Parameters:
     Type: 'AWS::EC2::Subnet::Id'
   SubNetId2:
     Type: 'AWS::EC2::Subnet::Id'
+  SubNetId3:
+    Type: 'AWS::EC2::Subnet::Id'
+  SubNetId4:
+    Type: 'AWS::EC2::Subnet::Id'
+  SubNetId5:
+    Type: 'AWS::EC2::Subnet::Id'
+  SubNetId6:
+    Type: 'AWS::EC2::Subnet::Id'
   EnvironmentType:
     Description: The environment type
     Type: String
@@ -23,7 +31,7 @@ Mappings:
       dev: vanlune-bin-dev
       uat: vanlune-bin-uat
       prod: vanlune-bin-prod
-    Function.Properties.Accounts.Bucket:
+    Function.Properties.Orders.Bucket:
       dev: vanlune-database
       uat: vanlune-database
       prod: vanlune-database
@@ -31,6 +39,10 @@ Mappings:
       dev: Dev
       uat: Uat
       prod: Prod
+    DbSecretName: 
+      dev: vanlune-db-dev
+      uat: vanlune-db-dev
+      prod: vanlune-db-dev
 Resources:
  # API Functinos
   ApiGatewayApi:
@@ -44,12 +56,13 @@ Resources:
         AllowMethods: "'*'"
         AllowHeaders: "'*'"
         AllowOrigin: "'*'"
-  CreateOrUpdatProduct:
+ #Accounts
+  CreateAccount:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-product-create
+      FunctionName: vanlune-accounts-create
       Handler: >-
-        Accounts.Application::Accounts.Application.Function::CreateOrUpdateProducts
+        Accounts.Application:Accounts.Application.Function::CreateAccount
       Runtime: dotnetcore3.1
       CodeUri:
         Bucket: !FindInMap 
@@ -68,20 +81,33 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGatewayApi
-            Path: '/products'
+            Path: '/accounts'
             Method: post        
       Environment:
         Variables:
-          AWS_S3_Bucket: !FindInMap 
+          DB_SECRET: !FindInMap 
             - EnvironmentVariablesMap
-            - Function.Properties.Accounts.Bucket
+            - DbSecretName
             - !Ref EnvironmentType
-  DeleteProduct:
+          EMAIL_SEND: "andreparis.comp@gmail.com"
+          EMAIL_TO: "andreparis.comp@gmail.com"
+          SecretName: "vanlune-auth"
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds:
+          - !Ref SubNetId1
+          - !Ref SubNetId2
+          - !Ref SubNetId3
+          - !Ref SubNetId4
+          - !Ref SubNetId5
+          - !Ref SubNetId6
+  AuthenticateAccount:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-product-delete-all
+      FunctionName: vanlune-accounts-authenticate
       Handler: >-
-        Accounts.Application::Accounts.Application.Function::DeleteProducts
+        Accounts.Application:Accounts.Application.Function::AuthenticateAccount
       Runtime: dotnetcore3.1
       CodeUri:
         Bucket: !FindInMap 
@@ -100,20 +126,33 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGatewayApi
-            Path: '/products'
-            Method: delete
+            Path: '/accounts/auth'
+            Method: post        
       Environment:
         Variables:
-          AWS_S3_Bucket: !FindInMap 
+          DB_SECRET: !FindInMap 
             - EnvironmentVariablesMap
-            - Function.Properties.Accounts.Bucket
+            - DbSecretName
             - !Ref EnvironmentType
-  GetAllProductsByCategory:
+          EMAIL_SEND: "andreparis.comp@gmail.com"
+          EMAIL_TO: "andreparis.comp@gmail.com"
+          SecretName: "vanlune-auth"
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds:
+          - !Ref SubNetId1
+          - !Ref SubNetId2
+          - !Ref SubNetId3
+          - !Ref SubNetId4
+          - !Ref SubNetId5
+          - !Ref SubNetId6
+  DeleteAccounts:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-product-get-all-by-category
+      FunctionName: vanlune-accounts-delete
       Handler: >-
-        Accounts.Application::Accounts.Application.Function::GetAllProductsByCategory
+        Accounts.Application:Accounts.Application.Function::DeleteAccounts
       Runtime: dotnetcore3.1
       CodeUri:
         Bucket: !FindInMap 
@@ -123,7 +162,7 @@ Resources:
         Key: Accounts.zip
       MemorySize: 256
       Timeout: 900
-      Role: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/lambda_frontend']]
+      Role: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/role-lambda-vanlune']]
       Policies:
         - AWSLambdaBasicExecutionRole
       Tracing: Active
@@ -132,12 +171,206 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGatewayApi
-            Path: '/products'
-            Method: get
+            Path: '/accounts'
+            Method: delete        
       Environment:
         Variables:
-          AWS_S3_Bucket: !FindInMap 
+          DB_SECRET: !FindInMap 
             - EnvironmentVariablesMap
-            - Function.Properties.Accounts.Bucket
+            - DbSecretName
             - !Ref EnvironmentType
-  
+          EMAIL_SEND: "andreparis.comp@gmail.com"
+          EMAIL_TO: "andreparis.comp@gmail.com"
+          SecretName: "vanlune-auth"
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds:
+          - !Ref SubNetId1
+          - !Ref SubNetId2
+          - !Ref SubNetId3
+          - !Ref SubNetId4
+          - !Ref SubNetId5
+          - !Ref SubNetId6
+  UserPatch:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: vanlune-accounts-user-patch
+      Handler: >-
+        Accounts.Application:Accounts.Application.Function::UserPatch
+      Runtime: dotnetcore3.1
+      CodeUri:
+        Bucket: !FindInMap 
+          - EnvironmentVariablesMap
+          - Function.Properties.CodeUri.Bucket
+          - !Ref EnvironmentType
+        Key: Accounts.zip
+      MemorySize: 256
+      Timeout: 900
+      Role: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/role-lambda-vanlune']]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Tracing: Active
+      Events:
+        HttpPost: 
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGatewayApi
+            Path: '/accounts/roles/patch'
+            Method: post        
+      Environment:
+        Variables:
+          DB_SECRET: !FindInMap 
+            - EnvironmentVariablesMap
+            - DbSecretName
+            - !Ref EnvironmentType
+          EMAIL_SEND: "andreparis.comp@gmail.com"
+          EMAIL_TO: "andreparis.comp@gmail.com"
+          SecretName: "vanlune-auth"
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds:
+          - !Ref SubNetId1
+          - !Ref SubNetId2
+          - !Ref SubNetId3
+          - !Ref SubNetId4
+          - !Ref SubNetId5
+          - !Ref SubNetId6
+ #Claims
+  CreateClaim:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: vanlune-accounts-claim-create
+      Handler: >-
+        Accounts.Application:Accounts.Application.Function::CreateClaim
+      Runtime: dotnetcore3.1
+      CodeUri:
+        Bucket: !FindInMap 
+          - EnvironmentVariablesMap
+          - Function.Properties.CodeUri.Bucket
+          - !Ref EnvironmentType
+        Key: Accounts.zip
+      MemorySize: 256
+      Timeout: 900
+      Role: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/role-lambda-vanlune']]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Tracing: Active
+      Events:
+        HttpPost: 
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGatewayApi
+            Path: '/accounts/claims'
+            Method: post        
+      Environment:
+        Variables:
+          DB_SECRET: !FindInMap 
+            - EnvironmentVariablesMap
+            - DbSecretName
+            - !Ref EnvironmentType
+          EMAIL_SEND: "andreparis.comp@gmail.com"
+          EMAIL_TO: "andreparis.comp@gmail.com"
+          SecretName: "vanlune-auth"
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds:
+          - !Ref SubNetId1
+          - !Ref SubNetId2
+          - !Ref SubNetId3
+          - !Ref SubNetId4
+          - !Ref SubNetId5
+          - !Ref SubNetId6
+ #ROLES
+  CreateRoles:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: vanlune-accounts-role-create
+      Handler: >-
+        Accounts.Application:Accounts.Application.Function::CreateRoles
+      Runtime: dotnetcore3.1
+      CodeUri:
+        Bucket: !FindInMap 
+          - EnvironmentVariablesMap
+          - Function.Properties.CodeUri.Bucket
+          - !Ref EnvironmentType
+        Key: Accounts.zip
+      MemorySize: 256
+      Timeout: 900
+      Role: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/role-lambda-vanlune']]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Tracing: Active
+      Events:
+        HttpPost: 
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGatewayApi
+            Path: '/accounts/roles'
+            Method: post        
+      Environment:
+        Variables:
+          DB_SECRET: !FindInMap 
+            - EnvironmentVariablesMap
+            - DbSecretName
+            - !Ref EnvironmentType
+          EMAIL_SEND: "andreparis.comp@gmail.com"
+          EMAIL_TO: "andreparis.comp@gmail.com"
+          SecretName: "vanlune-auth"
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds:
+          - !Ref SubNetId1
+          - !Ref SubNetId2
+          - !Ref SubNetId3
+          - !Ref SubNetId4
+          - !Ref SubNetId5
+          - !Ref SubNetId6
+  RolePatch:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: vanlune-accounts-role-patch
+      Handler: >-
+        Accounts.Application:Accounts.Application.Function::RolePatch
+      Runtime: dotnetcore3.1
+      CodeUri:
+        Bucket: !FindInMap 
+          - EnvironmentVariablesMap
+          - Function.Properties.CodeUri.Bucket
+          - !Ref EnvironmentType
+        Key: Accounts.zip
+      MemorySize: 256
+      Timeout: 900
+      Role: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/role-lambda-vanlune']]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Tracing: Active
+      Events:
+        HttpPost: 
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGatewayApi
+            Path: '/accounts/roles/claims/patch'
+            Method: post        
+      Environment:
+        Variables:
+          DB_SECRET: !FindInMap 
+            - EnvironmentVariablesMap
+            - DbSecretName
+            - !Ref EnvironmentType
+          EMAIL_SEND: "andreparis.comp@gmail.com"
+          EMAIL_TO: "andreparis.comp@gmail.com"
+          SecretName: "vanlune-auth"
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds:
+          - !Ref SubNetId1
+          - !Ref SubNetId2
+          - !Ref SubNetId3
+          - !Ref SubNetId4
+          - !Ref SubNetId5
+          - !Ref SubNetId6

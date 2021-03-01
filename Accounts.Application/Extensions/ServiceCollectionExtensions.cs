@@ -16,6 +16,14 @@ using Accounts.Domain.Security;
 using Accounts.Infrastructure.Security;
 using Accounts.Domain.DataAccess.Repositories.Aggregation;
 using Accounts.Infrastructure.DataAccess.Database.Aggregation;
+using StackExchange.Redis.Extensions.Core.Configuration;
+using System.Collections.Generic;
+using StackExchange.Redis.Extensions.Newtonsoft;
+using StackExchange.Redis.Extensions.Core.Implementations;
+using StackExchange.Redis.Extensions.Core.Abstractions;
+using System.Diagnostics;
+using Accounts.Infrastructure.Messaging.Redis;
+using Accounts.Domain.Messaging;
 
 namespace Accounts.Application.Extensions
 {
@@ -41,11 +49,56 @@ namespace Accounts.Application.Extensions
             services.AddSingleton<IRoleClaimRepository, RoleClaimRepository>();
             services.AddSingleton<IUserRoleRepository, UserRoleRepository>();
             services.AddSingleton<IRoleClaimAggregationRepository, RoleClaimAggregationRepository>();
+            //services.AddSingleton<IAuthRedis, AuthRedis>();
 
             services.AddScoped<ISecurityTokenHandler, JwtSecurityTokenHandler>();
             services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 
+            //if (Debugger.IsAttached)
+            //    services.AddRedis(configuration["Redis:InlineHosts"], configuration["Redis:Password"]);
+            //else
+            //    services.AddRedis(configuration["Redis_InlineHosts"], configuration["Redis_Password"]);
+
             return services;
+        }
+
+        public static void AddRedis(this IServiceCollection services,
+            string hostsInLine,
+            string password,
+            bool abortOnConnectFail = true,
+            int syncTimeout = 30)
+        {
+            var newRedisConfiguration = new RedisConfiguration()
+            {
+                AbortOnConnectFail = abortOnConnectFail,
+                Password = password,
+                Ssl = true
+            };
+
+            if (!string.IsNullOrEmpty(hostsInLine))
+            {
+                var hosts = new List<RedisHost>();
+
+                var splitted = hostsInLine.Split(' ');
+                for (int i = 0; i < splitted.Length - 1; i += 2)
+                {
+                    var host = new RedisHost()
+                    {
+                        Host = splitted[i],
+                        Port = Convert.ToInt32(splitted[i + 1])
+                    };
+
+                    hosts.Add(host);
+                }
+
+                newRedisConfiguration.Hosts = hosts.ToArray();
+            }
+
+            newRedisConfiguration.ConfigurationOptions.SyncTimeout = Convert.ToInt32(syncTimeout);
+
+            services.AddStackExchangeRedisExtensions<NewtonsoftSerializer>(newRedisConfiguration);
+            services.AddSingleton<IRedisCacheClient, RedisCacheClient>();
+            services.AddSingleton<IRedisCacheConnectionPoolManager, RedisCacheConnectionPoolManager>();
         }
 
         private static IConfigurationRoot GetConfiguration()

@@ -30,18 +30,6 @@ namespace Accounts.Application.Application.MediatR.Commands.Role.RolePatch
 
             role.Update(username);
 
-            // users assignment
-            var usersToBeAssignedTo = request.Patches.Where(e => e.Path == "/users" && e.Op == JsonPatchOperationType.ADD).FirstOrDefault();
-            var usersToBeUnassignedFrom = request.Patches.Where(e => e.Path == "/users" && e.Op == JsonPatchOperationType.REMOVE).FirstOrDefault();
-
-            if (usersToBeAssignedTo != null)
-                foreach (var userId in usersToBeAssignedTo.Value.Select(e => int.Parse(e)))
-                    role.AddUserToRole (new Domain.Entities.User() { Id = userId });
-
-            if (usersToBeUnassignedFrom != null)
-                foreach (var userId in usersToBeUnassignedFrom.Value.Select(e => int.Parse(e)))
-                    role.RemoveUserFromRole(new Domain.Entities.User() { Id = userId });
-
             // claims assignment
             var claimsToBeAssignedTo = request.Patches.Where(e => e.Path == "/claims" && e.Op == JsonPatchOperationType.ADD).FirstOrDefault();
             var claimsToBeUnassignedFrom = request.Patches.Where(e => e.Path == "/claims" && e.Op == JsonPatchOperationType.REMOVE).FirstOrDefault();
@@ -55,7 +43,7 @@ namespace Accounts.Application.Application.MediatR.Commands.Role.RolePatch
                     role.RemoveClaimFromRole(new Domain.Entities.Claim() { Id = claimId }
                     );
 
-            _claimAggregationRepository.AttachClaimUsersToRole(role).GetAwaiter().GetResult();
+            _claimAggregationRepository.AttachClaimsToRole(role).GetAwaiter().GetResult();
 
             return new HandleResponse() { Content = true };
         }

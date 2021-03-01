@@ -22,7 +22,6 @@ namespace Accounts.Application.Application.MediatR.Commands.Role.CreateRole
 
             role.Create(
                 request.Name,
-                request.Users,
                 request.Claims);
 
             _roleClaimAggregationRepository.AddRoleClaims(role).GetAwaiter().GetResult();
