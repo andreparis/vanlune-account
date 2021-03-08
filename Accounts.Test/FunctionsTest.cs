@@ -32,6 +32,19 @@ namespace Tests
         }
 
         [Fact]
+        public void UpdateUser()
+        {
+            var lambdaContext = new Mock<ILambdaContext>();
+            var apiContext = _fixture
+                .Build<APIGatewayProxyRequest>()
+                .With(x => x.Body, "{\"Id\":5,\"name\":\"Andre Paris\",\"email\":\"andreparis.comp@gmail.com\",\"country\":\"Brazil\",\"phone\":\"12312312313\",\"characters\":[],\"idRoles\":[],\"password\":\"\",\"isActive\":false}")
+                .Create();
+
+            var result = _function.UpdateAccount(apiContext, lambdaContext.Object);
+
+        }
+
+        [Fact]
         public void AuthUser()
         {
             var lambdaContext = new Mock<ILambdaContext>();
@@ -118,6 +131,42 @@ namespace Tests
                 .Create();
 
             var result = _function.RolePatch(apiContext, lambdaContext.Object);
+        }
+
+        [Fact]
+        public void ConfirmAccountTest()
+        {
+            var lambdaContext = new Mock<ILambdaContext>();
+            var apiContext = _fixture
+                .Build<APIGatewayProxyRequest>()
+                .With(x => x.Body, "{\"link\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MTc0Nzc5MzV9.3MzD20Faa1VgRZt1xlPZOHP4ZzpNG6E8IHyLSnhuDyw\"}")
+                .Create();
+
+            var result = _function.ConfirmAccount(apiContext, lambdaContext.Object);
+        }
+
+        [Fact]
+        public void RecoverPasswordEmailTest()
+        {
+            var lambdaContext = new Mock<ILambdaContext>();
+            var apiContext = _fixture
+                .Build<APIGatewayProxyRequest>()
+                .With(x => x.Body, "{\"email\":\"andre.paris@yahoo.com.br\"}")
+                .Create();
+
+            var result = _function.RecoverPasswordEmail(apiContext, lambdaContext.Object);
+        }
+
+        [Fact]
+        public void RecoverPasswordTest()
+        {
+            var lambdaContext = new Mock<ILambdaContext>();
+            var apiContext = _fixture
+                .Build<APIGatewayProxyRequest>()
+                .With(x => x.Body, "{\"password\": \"user123\",\"verification\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbmRyZS5wYXJpc0B5YWhvby5jb20uYnIiLCJqdGkiOiJkNWQ5YmQ2MWQ2Njk0YTcyODRiYmMwZGNlZDE4MDAzNSIsInVuaXF1ZV9uYW1lIjoiYW5kcmUucGFyaXNAeWFob28uY29tLmJyIiwiZXhwIjoxNjE0OTAxMDY0fQ.Uc-D1MzOLnZNLYWH8yeMQ_HLY1qQoTWXS3wPwtIKgdo\"}")
+                .Create();
+
+            var result = _function.RecoverPassword(apiContext, lambdaContext.Object);
         }
     }
 }

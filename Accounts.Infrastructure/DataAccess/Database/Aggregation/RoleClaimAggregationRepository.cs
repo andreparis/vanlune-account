@@ -40,10 +40,10 @@ namespace Accounts.Infrastructure.DataAccess.Database.Aggregation
         public async Task AddUserRoles(User user)
         {
             var userId = await _accountRepository.InsertAccount(user).ConfigureAwait(false);
-
+            
             if (userId <= 0)
                 return;
-
+            user.Id = userId;
             await _userRoleRepository.AddUserRoles(userId, user.Roles.Select(x => x.Role.Id).ToArray()).ConfigureAwait(false);
         }
 
@@ -57,7 +57,6 @@ namespace Accounts.Infrastructure.DataAccess.Database.Aggregation
             await _accountRepository.UpdateAccount(user).ConfigureAwait(false);
             await _userRoleRepository.DeleteRolesUserByUserId(user.Id).ConfigureAwait(false);
             await _userRoleRepository.AddUserRoles(user.Id, user.Roles.Select(x => x.Role.Id).ToArray()).ConfigureAwait(false);
-
         }
 
         public async Task AttachRolesToUser(User user)
@@ -76,16 +75,13 @@ namespace Accounts.Infrastructure.DataAccess.Database.Aggregation
             if (roleId <= 0)
                 return;
 
-            await _userRoleRepository.AddUsersRole(role.Users.Select(x => x.User.Id).ToArray(), roleId).ConfigureAwait(false);
             await _roleClaimRepository.AddRoleClaims(roleId, role.Claims.Select(x => x.Claim.Id).ToArray()).ConfigureAwait(false);
         }
 
-        public async Task AttachClaimUsersToRole(Role role)
+        public async Task AttachClaimsToRole(Role role)
         {
-            await _userRoleRepository.DeleteRolesUserByRoleId(role.Id).ConfigureAwait(false);
             await _roleClaimRepository.DeleteRoleClaimByRoleId(role.Id).ConfigureAwait(false);
 
-            await _userRoleRepository.AddUsersRole(role.Users.Select(x => x.User.Id).ToArray(), role.Id).ConfigureAwait(false);
             await _roleClaimRepository.AddRoleClaims(role.Id, role.Claims.Select(x => x.Claim.Id).ToArray()).ConfigureAwait(false);
         }
 

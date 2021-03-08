@@ -91,8 +91,6 @@ namespace Accounts.Infrastructure.DataAccess.Database
                     currRole = role;
                 if (claim != null && claim.Id > 0)
                     currRole.AddClaimToRole(claim);
-                if (user != null && user.Id > 0)
-                    currRole.AddUserToRole(user);
 
                 return role;
             },
@@ -102,6 +100,28 @@ namespace Accounts.Infrastructure.DataAccess.Database
             }, splitOn: $"{nameof(Role.Id)},{nameof(User.Id)},{nameof(Claim.Id)}");
 
             return currRole;
+        }
+
+        public async Task<Role> GetRoleIdByName(string name)
+        {
+            var query = $@"SELECT 
+                            R.`id`     AS {nameof(Role.Id)},
+                            R.`name`   AS {nameof(Role.Name)}                           
+                            FROM Vanlune.Roles AS R
+                            WHERE R.`name` = @name";
+
+            using var connection = _mySqlConnHelper.MySqlConnection();
+
+            if (connection.State != ConnectionState.Open)
+                connection.Open();
+
+            var result = await connection.QueryAsync<Role>(query,
+            new
+            {
+                name
+            });
+
+            return result.Single();
         }
 
         public async Task<IEnumerable<Role>> GetRolesByIdAsync(int[] ids)

@@ -16,6 +16,11 @@ using Accounts.Application.Extensions;
 using Accounts.Application.Application.MediatR.Commands.User.AuthenticateUser;
 using Accounts.Application.Application.MediatR.Commands.Role.RolePatch;
 using Accounts.Application.Application.MediatR.Commands.User.UserPatch;
+using Accounts.Application.Application.MediatR.Commands.User.UpdateAccount;
+using Accounts.Application.Application.MediatR.Commands.User.ConfirmEmail;
+using Accounts.Application.Application.MediatR.Commands.User.RecoverPassword.UpdatePassword;
+using Accounts.Application.Application.MediatR.Commands.User.RecoverPassword.RecoverEmail;
+using Accounts.Application.Application.MediatR.Commands.User.UpdatePassword;
 
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.Json.JsonSerializer))]
 namespace Accounts.Application
@@ -45,6 +50,20 @@ namespace Accounts.Application
             lambdaContext.Logger.LogLine($"Body {request.Body}");
 
             return Request<CreateAccountsCommand>(request.Body);
+        }
+
+        public APIGatewayProxyResponse ConfirmAccount(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
+        {
+            lambdaContext.Logger.LogLine($"Body {request.Body}");
+
+            return Request<ConfirmEmailCommand>(request.Body);
+        }
+
+        public APIGatewayProxyResponse UpdateAccount(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
+        {
+            lambdaContext.Logger.LogLine($"Body {request.Body}");
+
+            return Request<UpdateUserCommand>(request.Body);
         }
 
         public APIGatewayProxyResponse AuthenticateAccount(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
@@ -77,6 +96,27 @@ namespace Accounts.Application
             lambdaContext.Logger.LogLine($"Body {request.Body}");
 
             return Request<UserPatchCommand>(request.Body);
+        }
+
+        public APIGatewayProxyResponse RecoverPasswordEmail(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
+        {
+            lambdaContext.Logger.LogLine($"Body {request.Body}");
+
+            return Request<RecoverEmailCommand>(request.Body);
+        }
+
+        public APIGatewayProxyResponse RecoverPassword(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
+        {
+            lambdaContext.Logger.LogLine($"Body {request.Body}");
+
+            return Request<RecoverPasswordCommand>(request.Body);
+        }
+
+        public APIGatewayProxyResponse UpdatePassword(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
+        {
+            lambdaContext.Logger.LogLine($"Body {request.Body}");
+
+            return Request<UpdatePasswordCommand>(request.Body);
         }
         #endregion
 

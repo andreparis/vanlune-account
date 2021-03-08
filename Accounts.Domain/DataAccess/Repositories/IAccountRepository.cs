@@ -11,6 +11,7 @@ namespace Accounts.Domain.DataAccess.Repositories
         Task<User> GetAccount(int id);
         Task<User> GetAccountByEmail(string email);
         Task<int> InsertAccount(User account);
-        Task<int> UpdateAccount(User account);
+        Task UpdateAccount(User account);
+        Task UpdatePassword(int userId, string password);
     }
 }

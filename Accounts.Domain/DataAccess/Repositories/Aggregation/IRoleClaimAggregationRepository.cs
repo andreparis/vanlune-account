@@ -11,7 +11,7 @@ namespace Accounts.Domain.DataAccess.Repositories.Aggregation
         Task AddRoleClaims(Role role);
         Task AddUserRoles(User user);
         Task AttachRolesToUser(User user);
-        Task AttachClaimUsersToRole(Role role);
+        Task AttachClaimsToRole(Role role);
         Task<User> GetUserById(int id);
         Task UpdateAccountRoles(User user);
         Task<Role> GetRoleById(int id);

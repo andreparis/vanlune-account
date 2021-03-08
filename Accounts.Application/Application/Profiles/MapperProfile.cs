@@ -1,4 +1,6 @@
-﻿using AutoMapper;
+﻿using Accounts.Domain.DTO;
+using Accounts.Domain.Entities;
+using AutoMapper;
 
 namespace Accounts.Application.Profiles
 {
@@ -6,6 +8,7 @@ namespace Accounts.Application.Profiles
     {
         public MapperProfile()
         {
+            CreateMap<User, UserDto>().ReverseMap();
         }
     }
 }

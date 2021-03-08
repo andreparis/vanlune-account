@@ -4,8 +4,8 @@ using System.Text;
 
 namespace Accounts.Domain.Entities
 {
-    public class ClaimRole
+    public class Credentials
     {
-        public Claim Claim { get; set; }
+        public IEnumerable<Role> Roles { get; set; }
     }
 }

@@ -41,8 +41,8 @@ namespace Accounts.Domain.Entities
             if (!string.IsNullOrEmpty(command.Name))
                 this.Name = command.Name;
 
-            if (!string.IsNullOrEmpty(command.Email))
-                this.Email = command.Email;
+            //if (!string.IsNullOrEmpty(command.Email))
+            //    this.Email = command.Email;
 
             if (!string.IsNullOrEmpty(command.Password))
                 this.PasswordHash = command.Password;
@@ -55,8 +55,6 @@ namespace Accounts.Domain.Entities
 
             if (command.Characters != null && command.Characters.Count() > 0)
                 this.Characters = command.Characters;
-
-            this.IsActive = command.IsActive;
         }
 
         public void Update(IUpdateUserCommand command)

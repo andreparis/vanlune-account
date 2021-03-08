@@ -64,7 +64,6 @@ namespace Accounts.Infraestructure.Messaging.Redis
             catch (Exception e)
             {
                 _logger.Error($"Erro inesperado {e.Message}");
-                return GetAllFromRedis<T>(keys);
             }
             return result;
         }
@@ -88,7 +87,6 @@ namespace Accounts.Infraestructure.Messaging.Redis
             catch (Exception e)
             {
                 _logger.Error($"Erro inesperado {e.Message}");
-                RemoveInRedis(key);
             }
         }
 
@@ -115,7 +113,6 @@ namespace Accounts.Infraestructure.Messaging.Redis
             catch (Exception e)
             {
                 _logger.Error($"Erro inesperado {e.Message}");
-                AddRedis(key, value, expiresIn);
             }
         }
     

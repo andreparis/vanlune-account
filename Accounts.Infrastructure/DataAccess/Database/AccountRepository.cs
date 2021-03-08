@@ -5,6 +5,7 @@ using Dapper;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Data;
+using System.Dynamic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -64,7 +65,6 @@ namespace Accounts.Infrastructure.DataAccess.Database
                 {
                     if (claim != null)
                         role.AddClaimToRole(claim);
-                    role.AddUserToRole(user);
 
                     currUser.AddRoles(new List<Role>() { role });
                 }
@@ -121,7 +121,6 @@ namespace Accounts.Infrastructure.DataAccess.Database
                     role = currUser.Roles.Where(x => x.Role.Id.Equals(role.Id)).FirstOrDefault().Role;
                 }
                 role.AddClaimToRole(claim);
-                role.AddUserToRole(user);
 
                 currUser.AddRoles(new List<Role>() { role });
 
@@ -174,15 +173,17 @@ namespace Accounts.Infrastructure.DataAccess.Database
             return result.Single();
         }
     
-        public async Task<int> UpdateAccount(User account)
+        public async Task UpdateAccount(User account)
         {
+            var characters = account.Characters?.Count() > 0 ?
+                $"`characters` = @{nameof(User.Characters)}," : "";
             var query = $@"UPDATE `Vanlune`.`Accounts`
                             SET
                             `name` = @{nameof(User.Name)},
                             `email` = @{nameof(User.Email)},
                             `phone` = @{nameof(User.Phone)},
                             `country` = @{nameof(User.Country)},
-                            `characters` = @{nameof(User.Characters)},
+                            {characters}
                             `password` = @{nameof(User.PasswordHash)},
                             `isActive` = @{nameof(User.IsActive)}
                             WHERE `id` = @{nameof(User.Id)};";
@@ -192,19 +193,40 @@ namespace Accounts.Infrastructure.DataAccess.Database
             if (connection.State != ConnectionState.Open)
                 connection.Open();
 
-            var result = await connection.QueryAsync<int>(query, new
+            var charsList = account.Characters?.Count() > 0 ?
+                JsonConvert.SerializeObject(account.Characters) :
+                "";
+
+            await connection.ExecuteAsync(query, new
             {
                 account.Name,
                 account.PasswordHash,
                 account.Email,
                 account.Phone,
                 account.Country,
-                Characters = JsonConvert.SerializeObject(account.Characters),
                 account.Id,
-                account.IsActive
+                account.IsActive,
+                Characters = charsList
             });
+        }
 
-            return result.Single();
+        public async Task UpdatePassword(int userId, string password)
+        {
+            var query = $@"UPDATE `Vanlune`.`Accounts`
+                            SET
+                            `password` = @password
+                            WHERE `id` = @userId;";
+
+            using var connection = _mySqlConnHelper.MySqlConnection();
+
+            if (connection.State != ConnectionState.Open)
+                connection.Open();
+
+            await connection.ExecuteAsync(query, new
+            {
+                userId,
+                password
+            });
         }
     }
 }

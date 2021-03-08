@@ -6,7 +6,6 @@ namespace Accounts.Domain.Entities.CommandsInterface
     {
         string Name { get; set; }
         string Password { get; set; }
-        bool IsActive { get; set; }
         string Email { get; set; }
         string Phone { get; set; }
         string Country { get; set; }

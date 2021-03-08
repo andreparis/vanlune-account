@@ -1,12 +1,15 @@
 ﻿using Accounts.Application.MediatR.Base;
 using Accounts.Domain.DataAccess.Repositories;
+using Accounts.Domain.DTO;
 using Accounts.Domain.Messaging;
 using Accounts.Domain.Security;
 using Accounts.Infraestructure.Logging;
 using Accounts.Infraestructure.Security;
+using AutoMapper;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
@@ -23,13 +26,15 @@ namespace Accounts.Application.Application.MediatR.Commands.User.AuthenticateUse
         private readonly IAccountRepository _accountRepository;
         private readonly IAwsSecretManagerService _awsSecretManagerService;
         private readonly ILogger _logger;
+        private readonly IMapper _mapper;
 
         public AuthenticateUserCommandHandler(IConfiguration configuration,
            ISecurityTokenHandler securityTokenHandler,
            IPasswordHasher passwordHasher,
            IAccountRepository accountRepository,
            IAwsSecretManagerService awsSecretManagerService,
-           ILogger logger)
+           ILogger logger,
+           IMapper mapper)
         {
             _configuration = configuration;
             _securityTokenHandler = securityTokenHandler;
@@ -37,6 +42,7 @@ namespace Accounts.Application.Application.MediatR.Commands.User.AuthenticateUse
             _accountRepository = accountRepository;
             _awsSecretManagerService = awsSecretManagerService;
             _logger = logger;
+            _mapper = mapper;
         }
 
         internal override HandleResponse HandleIt(AuthenticateUserCommand request, CancellationToken cancellationToken)
@@ -50,14 +56,15 @@ namespace Accounts.Application.Application.MediatR.Commands.User.AuthenticateUse
                 _logger.Info($"User {request.Email} was not found on database.");
                 return new HandleResponse() { Error = $"Invalid credentials, User {request.Email} was not found" };
             }
+
             var isPasswordValid = _passwordHasher.Verify(request.Password, user.PasswordHash);
 
             if (!isPasswordValid)
-            {
-                return new HandleResponse() { Error = $"Invalid credentials invalid password" };
-            }
+                return new HandleResponse() { Error = $"Invalid credentials invalid password" };            
+            if (!user.IsActive)
+                return new HandleResponse() { Error = "You must verificated your e-mai. Please, check your inbox messages."};
+            
             var roleClaims = user.Roles.Select(e => e.Role.Claims.Select(c => c.Claim));
-
             var customClaims = new List<System.Security.Claims.Claim>();
 
             foreach (var roleClaim in roleClaims)
@@ -77,21 +84,11 @@ namespace Accounts.Application.Application.MediatR.Commands.User.AuthenticateUse
                     new System.Security.Claims.Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
                     new System.Security.Claims.Claim(JwtRegisteredClaimNames.UniqueName, request.Email)
             }.Union(customClaims);
-
-            var expiration = 60;
-            var expires = DateTime.Now.AddMinutes(expiration);
-            var issuer = _configuration["SecurityToken:Issuer"];
-            var expires_in = expiration * 60;
-
-            var securityKey = _awsSecretManagerService.GetSecret(_configuration["SecurityToken:SecretName"]);
-
+            var expires = DateTime.Now.AddHours(2);
+            var issuer = _configuration["Issuer"];
+            var securityKey = _awsSecretManagerService.GetSecret(_configuration["SecretName"]);
             var serializedToken = _securityTokenHandler.WriteToken(request.Email, claims, issuer, securityKey, expires);
-
-            //_authRedis.AddAuth(serializedToken, 
-            //    new Domain.Entities.Credentials() 
-            //    {
-            //        Roles = user.Roles.Select(x => x.Role)
-            //    });
+            var userDto = _mapper.Map<UserDto>(user);
 
             return new HandleResponse()
             {
@@ -99,7 +96,7 @@ namespace Accounts.Application.Application.MediatR.Commands.User.AuthenticateUse
                 {
                     access_token = serializedToken,
                     token_type = "Bearer",
-                    expires_in
+                    user = userDto
                 }
             };
         }

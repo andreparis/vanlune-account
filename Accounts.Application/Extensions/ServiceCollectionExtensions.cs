@@ -24,6 +24,7 @@ using StackExchange.Redis.Extensions.Core.Abstractions;
 using System.Diagnostics;
 using Accounts.Infrastructure.Messaging.Redis;
 using Accounts.Domain.Messaging;
+using Accounts.Infrastructure.Messaging.SNS;
 
 namespace Accounts.Application.Extensions
 {
@@ -49,7 +50,8 @@ namespace Accounts.Application.Extensions
             services.AddSingleton<IRoleClaimRepository, RoleClaimRepository>();
             services.AddSingleton<IUserRoleRepository, UserRoleRepository>();
             services.AddSingleton<IRoleClaimAggregationRepository, RoleClaimAggregationRepository>();
-            //services.AddSingleton<IAuthRedis, AuthRedis>();
+            
+            services.AddSingleton<Domain.Messaging.ISnsClient, SnsClient>();
 
             services.AddScoped<ISecurityTokenHandler, JwtSecurityTokenHandler>();
             services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();

@@ -8,15 +8,10 @@ namespace Accounts.Domain.Entities
     public class Role : Entity
     {
         public virtual ICollection<ClaimRole> Claims { get; } = new List<ClaimRole>();
-        public virtual ICollection<UserRole> Users { get; } = new List<UserRole>();
 
-        public void Create(string name, IEnumerable<int> users, IEnumerable<int> claims)
+        public void Create(string name, IEnumerable<int> claims)
         {
             Name = name;
-
-            if (users != null)
-                foreach (var user in users)
-                    Users.Add(new UserRole { User = new User() { Id = user } });
 
             if (claims != null)
                 foreach (var claim in claims)
@@ -26,22 +21,6 @@ namespace Accounts.Domain.Entities
         public void Update(string name)
         {
             Name = name;
-        }
-
-        public void AddUserToRole(User user)
-        {
-            if (!Users.Any(x => x.User.Id.Equals(user.Id)))
-                Users.Add(new UserRole { User = user });
-        }
-
-        public void RemoveUserFromRole(User user)
-        {
-            var existingUser = Users.FirstOrDefault(r => r.User.Id == user.Id);
-
-            if (existingUser == null)
-                throw new Exception($"User {user.Id} not found");
-
-            Users.Remove(existingUser);
         }
 
         public void AddClaimToRole(Claim claim)
