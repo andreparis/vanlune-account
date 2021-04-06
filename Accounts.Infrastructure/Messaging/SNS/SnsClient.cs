@@ -1,4 +1,5 @@
 ﻿using Accounts.Domain.Messaging;
+using Accounts.Domain.Rest;
 using Accounts.Infraestructure.Logging;
 using Amazon;
 using Amazon.Runtime;
@@ -15,20 +16,13 @@ namespace Accounts.Infrastructure.Messaging.SNS
 {
     public class SnsClient : ISnsClient
     {
-        private readonly IAmazonSimpleNotificationService _client;
+        private readonly ISnsApi _client;
         private readonly ILogger _logger;
 
-        public SnsClient(IConfiguration configuration,
+        public SnsClient(ISnsApi client,
             ILogger logger)
         {
-            if (Debugger.IsAttached)
-            {
-                _client = new AmazonSimpleNotificationServiceClient(new BasicAWSCredentials(configuration["AWS:AccessKey"], configuration["AWS:SecretKey"]), RegionEndpoint.USEast1);
-            }
-            else
-            {
-                _client = new AmazonSimpleNotificationServiceClient(RegionEndpoint.USEast1);
-            }
+            _client = client;
             _logger = logger;
         }
 
@@ -38,15 +32,8 @@ namespace Accounts.Infrastructure.Messaging.SNS
 
             try
             {
-                var request = new PublishRequest
-                {
-                    Message = message,
-                    TargetArn = topicArn
-                };
 
-                var response = await _client.PublishAsync(request).ConfigureAwait(false);
-
-                _logger.Info($"Sent to {topicArn} with id {response.MessageId}");
+                var response = await _client.SendEmailAsyn(topicArn, message);
             }
             catch (Exception e)
             {

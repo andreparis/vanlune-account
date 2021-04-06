@@ -3,10 +3,13 @@ Transform: 'AWS::Serverless-2016-10-31'
 Description: An AWS Serverless Application.
 Parameters:
   SecurityGroupId:
+    Default: sg-02dbdd82f513a7733
     Type: 'AWS::EC2::SecurityGroup::Id'
   SubNetId1:
+    Default: subnet-037e8b801c1e77db5
     Type: 'AWS::EC2::Subnet::Id'
   SubNetId2:
+    Default: subnet-0309164262b4dd853
     Type: 'AWS::EC2::Subnet::Id'
   EnvironmentType:
     Description: The environment type
@@ -32,27 +35,81 @@ Mappings:
       uat: Uat
       prod: Prod
     DbSecretName: 
-      dev: vanlune-db-dev
-      uat: vanlune-db-dev
-      prod: vanlune-db-dev
+      dev: db-dev
+      uat: db-uat
+      prod: db-prod
 Resources:
  # API Functinos
   ApiGatewayApi:
     Type: AWS::Serverless::Api
     Properties:
+      Auth: 
+        AddDefaultAuthorizerToCorsPreflight: False
+        Authorizers: 
+          LambdaAuth: 
+            FunctionArn: arn:aws:lambda:us-east-1:277944362602:function:vanlune-auth
+            FunctionPayloadType: TOKEN
+            Type: Lambda
+            Identity:
+              Header: AuthorizationToken
+              ReauthorizeEvery: 0
+        DefaultAuthorizer: LambdaAuth
       StageName: !FindInMap 
-          - EnvironmentVariablesMap
-          - Stage.ApiGateway
-          - !Ref EnvironmentType
+        - EnvironmentVariablesMap
+        - Stage.ApiGateway
+        - !Ref EnvironmentType
       Cors:
         AllowMethods: "'*'"
         AllowHeaders: "'*'"
         AllowOrigin: "'*'"
+        MaxAge: "'600'"
+        
+  GatewayResponse:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+      ResponseType: MISSING_AUTHENTICATION_TOKEN
+      RestApiId: !Ref ApiGatewayApi
+      StatusCode: '404'
+  GatewayNotAuthResponse:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+      ResponseType: UNAUTHORIZED
+      RestApiId: !Ref ApiGatewayApi
+      StatusCode: '401'
+  GatewayResponseDefault4XX:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+      ResponseType: DEFAULT_4XX
+      RestApiId: !Ref ApiGatewayApi
+  GatewayResponseDefault5XX:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+      ResponseType: DEFAULT_5XX
+      RestApiId: !Ref ApiGatewayApi
+  AuthPermission:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: arn:aws:lambda:us-east-1:277944362602:function:vanlune-auth
+      Principal: "apigateway.amazonaws.com"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayApi}/authorizers/LambdaAuth"
  #Accounts
   CreateAccount:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-create
+      FunctionName: player2-accounts-create
       Handler: >-
         Accounts.Application::Accounts.Application.Function::CreateAccount
       Runtime: dotnetcore3.1
@@ -77,14 +134,58 @@ Resources:
             Method: post        
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
           SecretName: "vanlune-auth"
-          PLAYERS2_URL: "http://localhost:3000"
+          SecretName_ConfirmEmail: "vanlune-confirm-email"
+          PLAYERS2_URL: "https://www.player2.store/"
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds:
+          - !Ref SubNetId1
+          - !Ref SubNetId2
+  GetAllAccountsByFilters:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: player2-accounts-get-by-filters
+      Handler: >-
+        Accounts.Application::Accounts.Application.Function::GetAllAccountsByFilters
+      Runtime: dotnetcore3.1
+      CodeUri:
+        Bucket: !FindInMap 
+          - EnvironmentVariablesMap
+          - Function.Properties.CodeUri.Bucket
+          - !Ref EnvironmentType
+        Key: Accounts.zip
+      MemorySize: 256
+      Timeout: 900
+      Role: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/role-lambda-vanlune']]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Tracing: Active
+      Events:
+        HttpPost: 
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGatewayApi
+            Path: '/accounts/filters'
+            Method: get        
+      Environment:
+        Variables:
+          CONN_STRING: !FindInMap 
+            - EnvironmentVariablesMap
+            - DbSecretName
+            - !Ref EnvironmentType
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
+          SecretName: "vanlune-auth"
+          SecretName_ConfirmEmail: "vanlune-confirm-email"
+          PLAYERS2_URL: "https://www.player2.store/"
       VpcConfig:
         SecurityGroupIds:
           - !Ref SecurityGroupId
@@ -94,7 +195,7 @@ Resources:
   ConfirmAccount:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-confirm-email
+      FunctionName: player2-accounts-confirm-email
       Handler: >-
         Accounts.Application::Accounts.Application.Function::ConfirmAccount
       Runtime: dotnetcore3.1
@@ -119,12 +220,12 @@ Resources:
             Method: post        
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
           SecretName: "vanlune-auth"
           Issuer: "PLAYER2"
       VpcConfig:
@@ -136,7 +237,7 @@ Resources:
   UpdateAccount:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-update
+      FunctionName: player2-accounts-update
       Handler: >-
         Accounts.Application::Accounts.Application.Function::UpdateAccount
       Runtime: dotnetcore3.1
@@ -161,12 +262,12 @@ Resources:
             Method: put        
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
           SecretName: "vanlune-auth"
           Issuer: "PLAYER2"
       VpcConfig:
@@ -178,7 +279,7 @@ Resources:
   AuthenticateAccount:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-authenticate
+      FunctionName: player2-accounts-authenticate
       Handler: >-
         Accounts.Application::Accounts.Application.Function::AuthenticateAccount
       Runtime: dotnetcore3.1
@@ -200,15 +301,18 @@ Resources:
           Properties:
             RestApiId: !Ref ApiGatewayApi
             Path: '/accounts/auth'
-            Method: post        
+            Method: post
+            Auth:
+                Authorizers: null
+                DefaultAuthorizer: null
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
           SecretName: "vanlune-auth"
           Issuer: "PLAYER2"
       VpcConfig:
@@ -220,7 +324,7 @@ Resources:
   DeleteAccounts:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-delete
+      FunctionName: player2-accounts-delete
       Handler: >-
         Accounts.Application::Accounts.Application.Function::DeleteAccounts
       Runtime: dotnetcore3.1
@@ -245,12 +349,12 @@ Resources:
             Method: delete        
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
           SecretName: "vanlune-auth"
       VpcConfig:
         SecurityGroupIds:
@@ -261,7 +365,7 @@ Resources:
   UserPatch:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-user-patch
+      FunctionName: player2-accounts-user-patch
       Handler: >-
         Accounts.Application::Accounts.Application.Function::UserPatch
       Runtime: dotnetcore3.1
@@ -286,12 +390,12 @@ Resources:
             Method: post        
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
           SecretName: "vanlune-auth"
       VpcConfig:
         SecurityGroupIds:
@@ -302,7 +406,7 @@ Resources:
   RecoverPasswordEmail:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-recover-password-email
+      FunctionName: player2-accounts-recover-password-email
       Handler: >-
         Accounts.Application::Accounts.Application.Function::RecoverPasswordEmail
       Runtime: dotnetcore3.1
@@ -327,14 +431,14 @@ Resources:
             Method: post        
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
-          SecretName: "vanlune-auth"
-          PLAYERS2_URL: "http://localhost:3000"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
+          SecretName_RecoverEmail: "vanlune-recover-email"
+          PLAYERS2_URL: "https://www.player2.store/"
       VpcConfig:
         SecurityGroupIds:
           - !Ref SecurityGroupId
@@ -344,7 +448,7 @@ Resources:
   RecoverPassword:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-recover-password
+      FunctionName: player2-accounts-recover-password
       Handler: >-
         Accounts.Application::Accounts.Application.Function::RecoverPassword
       Runtime: dotnetcore3.1
@@ -369,14 +473,14 @@ Resources:
             Method: post        
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
           SecretName: "vanlune-auth"
-          PLAYERS2_URL: "http://localhost:3000"
+          PLAYERS2_URL: "https://www.player2.store/"
       VpcConfig:
         SecurityGroupIds:
           - !Ref SecurityGroupId
@@ -386,7 +490,7 @@ Resources:
   UpdatePassword:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-update-password
+      FunctionName: player2-accounts-update-password
       Handler: >-
         Accounts.Application::Accounts.Application.Function::UpdatePassword
       Runtime: dotnetcore3.1
@@ -411,12 +515,12 @@ Resources:
             Method: post        
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
           SecretName: "vanlune-auth"
       VpcConfig:
         SecurityGroupIds:
@@ -428,7 +532,7 @@ Resources:
   CreateClaim:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-claim-create
+      FunctionName: player2-accounts-claim-create
       Handler: >-
         Accounts.Application::Accounts.Application.Function::CreateClaim
       Runtime: dotnetcore3.1
@@ -453,12 +557,12 @@ Resources:
             Method: post        
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
           SecretName: "vanlune-auth"
       VpcConfig:
         SecurityGroupIds:
@@ -470,7 +574,7 @@ Resources:
   CreateRoles:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-role-create
+      FunctionName: player2-accounts-role-create
       Handler: >-
         Accounts.Application::Accounts.Application.Function::CreateRoles
       Runtime: dotnetcore3.1
@@ -495,12 +599,53 @@ Resources:
             Method: post        
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
+          SecretName: "vanlune-auth"
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds:
+          - !Ref SubNetId1
+          - !Ref SubNetId2
+  GetAllRoles:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: player2-accounts-role-get-all
+      Handler: >-
+        Accounts.Application::Accounts.Application.Function::GetAllRoles
+      Runtime: dotnetcore3.1
+      CodeUri:
+        Bucket: !FindInMap 
+          - EnvironmentVariablesMap
+          - Function.Properties.CodeUri.Bucket
+          - !Ref EnvironmentType
+        Key: Accounts.zip
+      MemorySize: 256
+      Timeout: 900
+      Role: !Join ['', ['arn:aws:iam::', !Ref 'AWS::AccountId', ':role/role-lambda-vanlune']]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Tracing: Active
+      Events:
+        HttpPost: 
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGatewayApi
+            Path: '/accounts/roles'
+            Method: get        
+      Environment:
+        Variables:
+          CONN_STRING: !FindInMap 
+            - EnvironmentVariablesMap
+            - DbSecretName
+            - !Ref EnvironmentType
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
           SecretName: "vanlune-auth"
       VpcConfig:
         SecurityGroupIds:
@@ -511,7 +656,7 @@ Resources:
   RolePatch:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: vanlune-accounts-role-patch
+      FunctionName: player2-accounts-role-patch
       Handler: >-
         Accounts.Application::Accounts.Application.Function::RolePatch
       Runtime: dotnetcore3.1
@@ -536,12 +681,12 @@ Resources:
             Method: post        
       Environment:
         Variables:
-          DB_SECRET: !FindInMap 
+          CONN_STRING: !FindInMap 
             - EnvironmentVariablesMap
             - DbSecretName
             - !Ref EnvironmentType
-          EMAIL_SEND: "andreparis.comp@gmail.com"
-          EMAIL_TO: "andreparis.comp@gmail.com"
+          AWS_SNS_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/sns"
+          AWS_SECRET_URL: "https://sv82auhxwk.execute-api.us-east-1.amazonaws.com/Dev/aws/int/secret"
           SecretName: "vanlune-auth"
       VpcConfig:
         SecurityGroupIds:

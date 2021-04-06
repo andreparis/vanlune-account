@@ -25,6 +25,8 @@ using System.Diagnostics;
 using Accounts.Infrastructure.Messaging.Redis;
 using Accounts.Domain.Messaging;
 using Accounts.Infrastructure.Messaging.SNS;
+using Accounts.Domain.Rest;
+using Accounts.Infrastructure.Rest;
 
 namespace Accounts.Application.Extensions
 {
@@ -53,13 +55,13 @@ namespace Accounts.Application.Extensions
             
             services.AddSingleton<Domain.Messaging.ISnsClient, SnsClient>();
 
+            services.AddSingleton<ISecretApi, SecretApi>();
+            services.AddSingleton<ISnsApi, SnsApi>();
+
             services.AddScoped<ISecurityTokenHandler, JwtSecurityTokenHandler>();
             services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 
-            //if (Debugger.IsAttached)
-            //    services.AddRedis(configuration["Redis:InlineHosts"], configuration["Redis:Password"]);
-            //else
-            //    services.AddRedis(configuration["Redis_InlineHosts"], configuration["Redis_Password"]);
+            services.AddHttpClient();
 
             return services;
         }

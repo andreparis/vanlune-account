@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Dynamic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Accounts.Infrastructure.DataAccess.Database
@@ -14,16 +15,7 @@ namespace Accounts.Infrastructure.DataAccess.Database
     public class AccountRepository : IAccountRepository
     {
         private readonly IMySqlConnHelper _mySqlConnHelper;
-
-        public AccountRepository(IMySqlConnHelper mySqlConnHelper)
-        {
-            _mySqlConnHelper = mySqlConnHelper;
-            SqlMapper.AddTypeHandler(new DapperCharsTypeHandler());
-        }
-
-        public async Task<User> GetAccount(int id)
-        {
-            var query = $@"SELECT 
+        private readonly string QueryBase = $@"SELECT 
                             A.`id`         AS {nameof(User.Id)},
                             A.`name`       AS {nameof(User.Name)},
                             A.`email`      AS {nameof(User.Email)},
@@ -32,6 +24,8 @@ namespace Accounts.Infrastructure.DataAccess.Database
                             A.`characters` AS {nameof(User.Characters)},
                             A.`password`   AS {nameof(User.PasswordHash)},
                             A.`isActive`   AS {nameof(User.IsActive)},
+                            A.`createdAt`   AS {nameof(User.CreatedAt)},
+                            A.`updatedAt`   AS {nameof(User.UpdatedAt)},
                             R.id           AS {nameof(Role.Id)},
                             R.name         AS {nameof(Role.Name)},
                             C.id           AS {nameof(Claim.Id)},
@@ -42,7 +36,17 @@ namespace Accounts.Infrastructure.DataAccess.Database
                         LEFT JOIN `Vanlune`.RoleUser AS AR ON AR.idUser = A.id
                         LEFT JOIN `Vanlune`.Roles AS R ON R.id = AR.idRoles
                         LEFT JOIN `Vanlune`.ClaimRole AS CR ON CR.idRole = R.id
-                        LEFT JOIN `Vanlune`.Claim AS C ON C.id = CR.idClaim
+                        LEFT JOIN `Vanlune`.Claim AS C ON C.id = CR.idClaim";
+
+        public AccountRepository(IMySqlConnHelper mySqlConnHelper)
+        {
+            _mySqlConnHelper = mySqlConnHelper;
+            SqlMapper.AddTypeHandler(new DapperCharsTypeHandler());
+        }
+
+        public async Task<User> GetAccount(int id)
+        {
+            var query = $@"{QueryBase}
                         WHERE A.`id`= @id";
 
             using var connection = _mySqlConnHelper.MySqlConnection();
@@ -82,26 +86,7 @@ namespace Accounts.Infrastructure.DataAccess.Database
 
         public async Task<User> GetAccountByEmail(string email)
         {
-            var query = $@"SELECT 
-                            A.`id`         AS {nameof(User.Id)},
-                            A.`name`       AS {nameof(User.Name)},
-                            A.`email`      AS {nameof(User.Email)},
-                            A.`phone`      AS {nameof(User.Phone)},
-                            A.`country`    AS {nameof(User.Country)},
-                            A.`characters` AS {nameof(User.Characters)},
-                            A.`password`   AS {nameof(User.PasswordHash)},
-                            A.`isActive`   AS {nameof(User.IsActive)},
-                            R.id           AS {nameof(Role.Id)},
-                            R.name         AS {nameof(Role.Name)},
-                            C.id           AS {nameof(Claim.Id)},
-                            C.name         AS {nameof(Claim.Name)},
-                            C.type         AS {nameof(Claim.ClaimType)},
-                            C.value        AS {nameof(Claim.ClaimValue)}
-                        FROM Vanlune.`Accounts` AS A
-                        LEFT JOIN `Vanlune`.RoleUser AS AR ON AR.idUser = A.id
-                        LEFT JOIN `Vanlune`.Roles AS R ON R.id = AR.idRoles
-                        LEFT JOIN `Vanlune`.ClaimRole AS CR ON CR.idRole = R.id
-                        LEFT JOIN `Vanlune`.Claim AS C ON C.id = CR.idClaim
+            var query = $@"{QueryBase}
                         WHERE A.`email`= @email";
 
             using var connection = _mySqlConnHelper.MySqlConnection();
@@ -120,9 +105,10 @@ namespace Accounts.Infrastructure.DataAccess.Database
                 {
                     role = currUser.Roles.Where(x => x.Role.Id.Equals(role.Id)).FirstOrDefault().Role;
                 }
-                role.AddClaimToRole(claim);
-
-                currUser.AddRoles(new List<Role>() { role });
+                if (claim != null)
+                    role.AddClaimToRole(claim);
+                if (role != null)
+                    currUser.AddRoles(new List<Role>() { role });
 
                 return user;
             },
@@ -132,6 +118,103 @@ namespace Accounts.Infrastructure.DataAccess.Database
             }, splitOn: $"{nameof(User.Id)},{nameof(Role.Id)},{nameof(Claim.Id)}");
 
             return currUser;
+        }
+
+        public async Task<IEnumerable<User>> GetAccountsByFilters(IDictionary<string, string> filters)
+        {
+            var query = new StringBuilder();
+            query.Append($@"{QueryBase} WHERE ");
+
+            var inTerms = new DynamicParameters();
+            var hasId = filters.ContainsKey("id") && !string.IsNullOrEmpty(filters["id"]);
+            if (hasId)
+            {
+                query.Append(" A.`id`=@id ");
+                inTerms.Add("@id", filters["id"]);
+            }
+
+            var hasEmail = filters.ContainsKey("email") && !string.IsNullOrEmpty(filters["email"]);
+            if (hasEmail)
+            {
+                if (hasId)
+                    query.Append(" AND ");
+                query.Append(" A.`email`=@email ");
+                inTerms.Add("@email", filters["email"]);
+            }
+
+            var hasRoleId = filters.ContainsKey("roleId") && !string.IsNullOrEmpty(filters["roleId"]);
+            if (hasRoleId)
+            {
+                if (hasId || hasEmail)
+                    query.Append(" AND ");
+                query.Append(" R.id=@roleId ");
+                inTerms.Add("@roleId", filters["roleId"]);
+            }
+
+            var hasRoleName = filters.ContainsKey("roleName") && !string.IsNullOrEmpty(filters["roleName"]);
+            if (hasRoleName)
+            {
+                if (hasId || hasEmail || hasRoleId)
+                    query.Append(" AND ");
+                query.Append(" R.id=@roleName ");
+                inTerms.Add("@roleName", filters["roleName"]);
+            }
+
+            var hasStartDate = filters.ContainsKey("startDate") && !string.IsNullOrEmpty(filters["startDate"]);
+            if (hasStartDate)
+            {
+                if (hasId || hasEmail || hasRoleId ||
+                    hasRoleName)
+                    query.Append(" AND ");
+                query.Append(" A.createdAt >= @startDate ");
+                inTerms.Add("@startDate", filters["startDate"]);
+            }
+
+            var hasEndDate = filters.ContainsKey("endDate") && !string.IsNullOrEmpty(filters["endDate"]);
+            if (hasEndDate)
+            {
+                if (hasId || hasEmail || hasRoleId ||
+                    hasRoleName || hasStartDate)
+                    query.Append(" AND ");
+                query.Append(" A.createdAt <= @endDate ");
+                inTerms.Add("@endDate", filters["endDate"]);
+            }
+
+            using var connection = _mySqlConnHelper.MySqlConnection();
+
+            if (connection.State != ConnectionState.Open)
+                connection.Open();
+
+            var users = new List<User>(); ;
+            User currUser = default;
+            var result = await connection.QueryAsync<User, Role, Claim, User>(query.ToString(),
+            (user, role, claim) =>
+            {
+                if (!users.Any(x => x.Id == user.Id))
+                    users.Add(user);
+                currUser = users.Where(x => x.Id == user.Id).First();
+
+                if (currUser == null)
+                    currUser = user;
+
+                if (currUser.Roles.Any(x => x.Role.Id.Equals(role.Id)))
+                {
+                    role = currUser.Roles.Where(x => x.Role.Id.Equals(role.Id)).FirstOrDefault().Role;
+                }
+                if (role != null)
+                {
+                    if (claim != null)
+                        role.AddClaimToRole(claim);
+
+                    currUser.AddRoles(new List<Role>() { role });
+                }
+
+                return user;
+            },
+            inTerms,
+            splitOn: $"{nameof(User.Id)},{nameof(Role.Id)},{nameof(Claim.Id)}");
+
+            return users;
         }
 
         public async Task<int> InsertAccount(User account)

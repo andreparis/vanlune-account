@@ -9,6 +9,7 @@ namespace Accounts.Domain.DataAccess.Repositories
     public interface IAccountRepository
     {
         Task<User> GetAccount(int id);
+        Task<IEnumerable<User>> GetAccountsByFilters(IDictionary<string, string> filters);
         Task<User> GetAccountByEmail(string email);
         Task<int> InsertAccount(User account);
         Task UpdateAccount(User account);

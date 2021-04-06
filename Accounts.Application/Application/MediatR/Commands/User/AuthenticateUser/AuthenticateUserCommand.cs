@@ -13,5 +13,7 @@ namespace Accounts.Application.Application.MediatR.Commands.User.AuthenticateUse
         public string Email { get; set; }
         [Required]
         public string Password { get; set; }
+        public FacebookLogin FacebookLogin { get; set; }
+        public GoogleLogin GoogleLogin { get; set; }
     }
 }

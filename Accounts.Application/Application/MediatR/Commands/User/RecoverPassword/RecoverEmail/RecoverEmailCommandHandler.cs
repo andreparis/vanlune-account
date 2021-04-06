@@ -79,7 +79,7 @@ namespace Accounts.Application.Application.MediatR.Commands.User.RecoverPassword
         {
             var expires = DateTime.Now.AddHours(2);
             var issuer = _configuration["Issuer"];
-            var securityKey = _awsSecretManagerService.GetSecret(_configuration["SecretName"]);
+            var securityKey = _awsSecretManagerService.GetSecret(_configuration["SecretName_RecoverEmail"]);
             var claims = new[]
             {
                     new System.Security.Claims.Claim(JwtRegisteredClaimNames.Sub, email),
@@ -87,11 +87,12 @@ namespace Accounts.Application.Application.MediatR.Commands.User.RecoverPassword
                     new System.Security.Claims.Claim(JwtRegisteredClaimNames.UniqueName, email)
             };
             var serializedToken = _securityTokenHandler.WriteToken(email, claims, issuer, securityKey, expires);
-            var url = _configuration["PLAYERS2_URL"] + "/newpassword?u17=";
+            var url = _configuration["PLAYERS2_URL"] + "newpassword?u17=";
             var template = ForgotPasswordTemplate.GetForgotPasswordBody(url + serializedToken);
             var emailTopic = _configuration["EMAIL_TOPIC"];
             var message = new Message()
             {
+                From = "accounts@player2.store",
                 Body = template,
                 To = email,
                 Subject = $"{userName}, change your password of PLAYER2 here!"

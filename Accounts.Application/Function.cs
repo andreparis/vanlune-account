@@ -21,6 +21,7 @@ using Accounts.Application.Application.MediatR.Commands.User.ConfirmEmail;
 using Accounts.Application.Application.MediatR.Commands.User.RecoverPassword.UpdatePassword;
 using Accounts.Application.Application.MediatR.Commands.User.RecoverPassword.RecoverEmail;
 using Accounts.Application.Application.MediatR.Commands.User.UpdatePassword;
+using Accounts.Application.Application.MediatR.Commands.Role.GetAllRoles;
 
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.Json.JsonSerializer))]
 namespace Accounts.Application
@@ -86,7 +87,19 @@ namespace Accounts.Application
 
             lambdaContext.Logger.LogLine($"GetAllAccounts query");
 
-            var command = new GetAccountsCommand();
+            var command = new GetAccountsByFiltersCommand();
+
+            return MediatrSend(command);
+        }
+
+        public APIGatewayProxyResponse GetAllAccountsByFilters(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
+        {
+            lambdaContext.Logger.LogLine($"GetAllAccountsByFilters query");
+
+            var command = new GetAccountsByFiltersCommand()
+            {
+                Filters = request.QueryStringParameters
+            };
 
             return MediatrSend(command);
         }
@@ -142,6 +155,15 @@ namespace Accounts.Application
             lambdaContext.Logger.LogLine($"Body {request.Body}");
 
             return Request<RolePatchCommand>(request.Body);
+        }
+
+        public APIGatewayProxyResponse GetAllRoles(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
+        {
+            lambdaContext.Logger.LogLine($"GetAllAccounts query");
+
+            var command = new GetAllRolesCommand();
+
+            return MediatrSend(command);
         }
         #endregion
 

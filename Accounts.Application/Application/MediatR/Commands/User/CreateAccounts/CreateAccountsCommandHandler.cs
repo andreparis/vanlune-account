@@ -106,7 +106,7 @@ namespace Accounts.Application.Application.MediatR.Commands.CreateProducts
         {
             var expires = DateTime.Now.AddDays(30);
             var issuer = _configuration["Issuer"];
-            var securityKey = _awsSecretManagerService.GetSecret(_configuration["SecretName"]);
+            var securityKey = _awsSecretManagerService.GetSecret(_configuration["SecretName_ConfirmEmail"]);
             var claims = new[]
             {
                     new System.Security.Claims.Claim(JwtRegisteredClaimNames.Sub, email),
@@ -114,11 +114,12 @@ namespace Accounts.Application.Application.MediatR.Commands.CreateProducts
                     new System.Security.Claims.Claim(JwtRegisteredClaimNames.UniqueName, email)
             };
             var serializedToken = _securityTokenHandler.WriteToken(email, claims, issuer, securityKey, expires);
-            var url = _configuration["PLAYERS2_URL"] + "/confirm?u19=";
+            var url = _configuration["PLAYERS2_URL"] + "confirm.html?u19=";
             var template = CreateAccountTemplate.GetAcocuntsBody(url + serializedToken);
             var emailTopic = _configuration["EMAIL_TOPIC"];
             var message = new Message()
             {
+                From = "accounts@player2.store",
                 Body = template,
                 To = email,
                 Subject = $"Welcome to PLAYER2 {userName}! Please confirm your e-mail here"

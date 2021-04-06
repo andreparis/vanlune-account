@@ -16,6 +16,8 @@ namespace Accounts.Domain.Entities
         public string Phone { get; set; }
         public string Country { get; set; }
         public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
         public IEnumerable<Character> Characters { get; set; }
 
         public void Create(ICreateUserCommand command, IEnumerable<Role> roles)
@@ -82,7 +84,7 @@ namespace Accounts.Domain.Entities
 
         public void AddRoleToUser(Role role)
         {
-            if (Roles.Any(x => x.Role.Id.Equals(role.Id)))
+            if (!Roles.Any(x => x.Role.Id.Equals(role.Id)))
                 this.Roles.Add(new UserRole { Role = role });
         }
 

@@ -10,6 +10,7 @@ namespace Accounts.Domain.DataAccess.Repositories
     {
         Task<int> InsertAsync(Role role);
         Task<int> UpdateAsync(Role role);
+        Task<IEnumerable<Role>> GetAllRoles();
         Task<Role> GetRole(int id);
         Task<Role> GetRoleIdByName(string name);
         Task<IEnumerable<Role>> GetRolesByIdAsync(int[] ids);

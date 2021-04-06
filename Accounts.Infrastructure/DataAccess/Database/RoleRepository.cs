@@ -61,6 +61,23 @@ namespace Accounts.Infrastructure.DataAccess.Database
             return result.Single();
         }
 
+        public async Task<IEnumerable<Role>> GetAllRoles()
+        {
+            var query = $@"SELECT 
+                            `id`     AS {nameof(Role.Id)},
+                            `name`   AS {nameof(Role.Name)}
+                            FROM `Vanlune`.`Roles`";
+
+            using var connection = _mySqlConnHelper.MySqlConnection();
+
+            if (connection.State != ConnectionState.Open)
+                connection.Open();
+
+            var result = await connection.QueryAsync<Role>(query);
+
+            return result;
+        }
+
         public async Task<Role> GetRole(int id)
         {
             var query = $@"SELECT 

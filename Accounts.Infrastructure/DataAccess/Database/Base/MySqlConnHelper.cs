@@ -17,7 +17,8 @@ namespace Accounts.Infrastructure.DataAccess.Database.Base
         public MySqlConnHelper(IConfiguration configuration,
             IAwsSecretManagerService awsSecretManagerService)
         {
-            var secret = JsonConvert.DeserializeObject<SecretDb>(awsSecretManagerService.GetSecret(configuration["CONN_STRING"]));
+            var secretObj = awsSecretManagerService.GetSecret(configuration["CONN_STRING"]);
+            var secret = JsonConvert.DeserializeObject<SecretDb>(secretObj);
             _connectionString = $@"server={secret.Host};
                                 userid={secret.Username};
                                 password={secret.Password};
